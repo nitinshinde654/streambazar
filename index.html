@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreamBazar | Watch & Download</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-[#0a0a0a] text-gray-100 font-sans selection:bg-red-600/30">
+
+  <header class="fixed top-0 w-full z-40 bg-[#0a0a0a]/80 backdrop-blur-lg border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
+      <div class="flex items-center space-x-2">
+        <div class="bg-red-600 p-2 rounded-xl">
+          <i class="fa-solid fa-play text-white"></i>
+        </div>
+        <h1 class="text-2xl font-black text-white tracking-tighter">Stream<span class="text-red-600">Bazar</span></h1>
+      </div>
+      
+      <button onclick="window.openModal()" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-[0_0_15px_rgba(220,38,38,0.4)] active:scale-95">
+        <i class="fa-solid fa-plus mr-2"></i>Link Dalein
+      </button>
+    </div>
+  </header>
+
+  <main class="pt-28 pb-20 max-w-7xl mx-auto px-4">
+    <div class="relative max-w-2xl mx-auto mb-10">
+      <i class="fa-solid fa-search absolute left-5 top-4 text-gray-500"></i>
+      <input type="text" id="searchInput" placeholder="Search movies, web series, anime..." class="w-full pl-14 pr-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:ring-2 focus:ring-red-600/50 focus:outline-none transition-all">
+    </div>
+
+    <div class="flex gap-3 overflow-x-auto pb-8 scrollbar-hide">
+      <button onclick="filterCat('All')" class="cat-btn bg-red-600 text-white px-6 py-2 rounded-full font-bold shadow-lg">All</button>
+      <button onclick="filterCat('Movie')" class="cat-btn bg-white/5 text-gray-400 px-6 py-2 rounded-full font-bold border border-white/5 hover:text-white">Movies</button>
+      <button onclick="filterCat('Series')" class="cat-btn bg-white/5 text-gray-400 px-6 py-2 rounded-full font-bold border border-white/5 hover:text-white">Series</button>
+      <button onclick="filterCat('Anime')" class="cat-btn bg-white/5 text-gray-400 px-6 py-2 rounded-full font-bold border border-white/5 hover:text-white">Anime</button>
+    </div>
+
+    <div id="movieGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+      <div class="col-span-full text-center py-20 text-red-600">
+        <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
+        <p class="mt-4 text-gray-400 font-medium">Loading premium links...</p>
+      </div>
+    </div>
+  </main>
+
+  <div id="addModal" class="fixed inset-0 z-50 hidden bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[#111] border border-white/10 rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-2xl font-bold">Add New Link</h2>
+        <button onclick="window.closeModal()" class="bg-white/5 p-2 rounded-full hover:text-red-500"><i class="fa-solid fa-xmark fa-xl"></i></button>
+      </div>
+      <form id="addForm" class="space-y-5">
+        <input type="text" id="mTitle" required placeholder="Title (e.g. Pathaan)" class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-red-600 focus:outline-none">
+        <div class="grid grid-cols-2 gap-4">
+          <select id="mType" class="bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none">
+            <option value="Movie">Movie</option>
+            <option value="Series">Series</option>
+            <option value="Anime">Anime</option>
+          </select>
+          <select id="mQuality" class="bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none">
+            <option value="1080p">1080p FHD</option>
+            <option value="720p">720p HD</option>
+            <option value="4K">4K Ultra</option>
+          </select>
+        </div>
+        <input type="url" id="mPoster" placeholder="Poster Image URL (Optional)" class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none">
+        <input type="url" id="mLink" required placeholder="Download/Watch Link" class="w-full bg-white/5 border border-red-600/30 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-red-600 focus:outline-none">
+        <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black text-lg transition-all shadow-lg shadow-red-600/20 active:scale-95">PUBLISH NOW</button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // --- PASTE YOUR FIREBASE CONFIG HERE ---
+    const firebaseConfig = {
+      apiKey: "PASTE_HERE",
+      authDomain: "PASTE_HERE",
+      projectId: "PASTE_HERE",
+      storageBucket: "PASTE_HERE",
+      messagingSenderId: "PASTE_HERE",
+      appId: "PASTE_HERE"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    signInAnonymously(auth);
+
+    let allMovies = [];
+    let currentCat = 'All';
+
+    // Fetch Data
+    onSnapshot(collection(db, 'links'), (snapshot) => {
+      allMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      allMovies.sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+      render();
+    });
+
+    function render() {
+      const grid = document.getElementById('movieGrid');
+      const filtered = allMovies.filter(m => {
+        const matchesCat = currentCat === 'All' || m.type === currentCat;
+        const matchesSearch = m.title.toLowerCase().includes(document.getElementById('searchInput').value.toLowerCase());
+        return matchesCat && matchesSearch;
+      });
+
+      if(filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-600">No links found. Add one!</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(m => `
+        <div class="group relative rounded-[2rem] overflow-hidden bg-white/5 border border-white/5 hover:border-red-500/50 transition-all duration-500">
+          <div class="relative aspect-[2/3] overflow-hidden">
+            <img src="${m.poster || 'https://via.placeholder.com/400x600/1a1a1a/e50914?text='+m.title}" class="w-full h-full object-cover group-hover:scale-110 transition-all duration-700">
+            <div class="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent opacity-80"></div>
+            <div class="absolute top-4 left-4 right-4 flex justify-between">
+              <span class="bg-red-600 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-tighter shadow-xl">${m.quality}</span>
+              <span class="bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-bold px-2 py-1 rounded-lg">${m.type}</span>
+            </div>
+            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-black/40 backdrop-blur-sm">
+              <a href="${m.link}" target="_blank" class="bg-red-600 p-4 rounded-full shadow-2xl shadow-red-600/50 hover:scale-110 transition-transform">
+                <i class="fa-solid fa-download text-white text-xl"></i>
+              </a>
+            </div>
+          </div>
+          <div class="p-4 absolute bottom-0 w-full pointer-events-none">
+            <h3 class="font-bold text-white text-base truncate drop-shadow-lg">${m.title}</h3>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Global Functions
+    window.openModal = () => document.getElementById('addModal').classList.remove('hidden');
+    window.closeModal = () => document.getElementById('addModal').classList.add('hidden');
+    window.filterCat = (cat) => {
+      currentCat = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.classList.remove('bg-red-600', 'text-white', 'shadow-lg');
+        btn.classList.add('bg-white/5', 'text-gray-400');
+        if(btn.innerText === cat || (cat==='All' && btn.innerText==='All')) {
+            btn.classList.add('bg-red-600', 'text-white', 'shadow-lg');
+            btn.classList.remove('bg-white/5', 'text-gray-400');
+        }
+      });
+      render();
+    };
+
+    document.getElementById('searchInput').addEventListener('input', render);
+
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector('button');
+      btn.innerText = "PUBLISHING...";
+      btn.disabled = true;
+
+      try {
+        await addDoc(collection(db, 'links'), {
+          title: document.getElementById('mTitle').value,
+          type: document.getElementById('mType').value,
+          quality: document.getElementById('mQuality').value,
+          poster: document.getElementById('mPoster').value,
+          link: document.getElementById('mLink').value,
+          createdAt: serverTimestamp()
+        });
+        window.closeModal();
+        e.target.reset();
+      } catch (err) { alert("Error! Check Firebase Config."); }
+      btn.innerText = "PUBLISH NOW";
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>
